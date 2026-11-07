@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2a6df4">
+<title>Учёт документов</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--tx:#1f1f1c;--mut:#6d6c66;--bd:#e2e0d9;--ac:#2a6df4;--ok:#1f8a4c;--bad:#c93b3b;--warn:#b7791f;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#17171a;--card:#212125;--tx:#ececea;--mut:#9a9a94;--bd:#33333a;--ac:#6b9bff;--ok:#4cc27f;--bad:#ef6b6b;--warn:#e0a84a;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:960px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:22px;margin:0}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.users{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+select{padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit}
+form.f{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.full{grid-column:1/-1}
+label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}
+input,textarea{width:100%;padding:9px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+textarea{resize:vertical;min-height:60px}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--ac);outline-offset:-1px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:7px 12px}
+button.primary{background:var(--ac);border-color:var(--ac);color:#fff;padding:10px 18px;font-weight:600}
+.tabs{display:flex;gap:8px;margin:24px 0 12px;border-bottom:1px solid var(--bd)}
+.tab{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:10px 14px;color:var(--mut);font-weight:600}
+.tab.on{color:var(--tx);border-bottom-color:var(--ac)}
+.cnt{background:var(--bd);border-radius:10px;padding:1px 8px;font-size:12px;margin-left:6px}
+.list{display:flex;flex-direction:column;gap:10px}
+.doc{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:10px;padding:12px 14px}
+.doc.over{border-left-color:var(--bad)}.doc.soon{border-left-color:var(--warn)}.doc.done{border-left-color:var(--ok)}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.ttl{font-weight:600;font-size:16px;word-break:break-word}
+.badge{font-size:12px;padding:2px 8px;border-radius:10px;white-space:nowrap;background:var(--bd);color:var(--mut)}
+.badge.over{background:var(--bad);color:#fff}.badge.soon{background:var(--warn);color:#fff}.badge.done{background:var(--ok);color:#fff}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 16px;margin:8px 0;font-size:13px}
+.meta b{display:block;font-size:11px;font-weight:500;color:var(--mut)}
+.res{white-space:pre-wrap;word-break:break-word}
+.act{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.act .ok{color:var(--ok);border-color:var(--ok)}.act .del,.del{color:var(--bad)}
+.empty{text-align:center;color:var(--mut);padding:32px 0}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+#modal.on{display:flex}
+#box{background:var(--card);border-radius:12px;padding:20px;width:100%;max-width:380px;display:grid;gap:12px}
+#box h2{margin:0;font-size:18px}
+.hint{font-size:12px;color:var(--mut)}
+@media (max-width:560px){form.f{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="bar">
+  <h1>📄 Учёт документов</h1>
+  <div class="users">
+   <select id="usel" aria-label="Пользователь"></select>
+   <button id="uadd">+ Пользователь</button>
+   <button id="udel" class="del">Удалить</button>
+   <button id="exp">Экспорт</button>
+   <button id="imp">Импорт</button>
+   <button id="cloud">☁ Синхронизация</button>
+   <input type="file" id="file" accept=".json,application/json" hidden>
+  </div>
+ </div>
+ <div class="hint" id="st" style="margin:-6px 0 12px"></div>
+ <form class="f" id="f">
+  <div class="full"><label>Название</label><input id="title" required placeholder="Например: Письмо от ООО «Ромашка»"></div>
+  <div><label>Срок исполнения</label><input id="due" type="date" required></div>
+  <div><label>Исполнитель</label><input id="exec" required placeholder="ФИО"></div>
+  <div class="full"><label>Резолюция</label><textarea id="res" placeholder="Текст резолюции"></textarea></div>
+  <div class="full"><button class="primary" id="sub">Добавить документ</button> <button type="button" id="cancel" hidden>Отмена</button></div>
+ </form>
+ <div class="tabs">
+  <button class="tab on" data-t="active">В работе<span class="cnt" id="c1">0</span></button>
+  <button class="tab" data-t="done">Исполненные<span class="cnt" id="c2">0</span></button>
+ </div>
+ <div class="list" id="list"></div>
+</div>
+
+<div id="modal"><div id="box"></div></div>
+
+<script>
+const KEY="doctracker-v2",OLD="docs-tracker-v1";
+let S={users:[],current:null},tab="active",editId=null;
+const $=id=>document.getElementById(id);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+function load(){
+ try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&Array.isArray(r.users))S=r}catch(e){}
+}
+function saveLocal(){
+ try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){alert("Не удалось сохранить: память браузера недоступна или заполнена.")}
+}
+function save(){S.rev=Date.now();saveLocal();schedulePush()}
+async function hash(s){
+ if(!s)return "";
+ try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+ catch(e){return btoa(unescape(encodeURIComponent(s)))}
+}
+const user=()=>S.users.find(u=>u.id===S.current);
+const docs=()=>user()?user().docs:[];
+
+const fmt=s=>s?new Date(s+(s.length<=10?"T00:00:00":"")).toLocaleDateString("ru-RU"):"";
+const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
+function status(d){
+ if(d.done)return{c:"done",t:"Исполнено "+fmt(d.doneAt.slice(0,10))};
+ const diff=Math.round((new Date(d.due+"T00:00:00")-today())/864e5);
+ if(diff<0)return{c:"over",t:"Просрочено на "+(-diff)+" дн."};
+ if(diff===0)return{c:"soon",t:"Срок сегодня"};
+ if(diff<=3)return{c:"soon",t:"Осталось "+diff+" дн."};
+ return{c:"",t:"Осталось "+diff+" дн."};
+}
+
+function renderUsers(){
+ $("usel").innerHTML=S.users.map(u=>`<option value="${u.id}"${u.id===S.current?" selected":""}>${esc(u.name)}${u.pass?" 🔒":""}</option>`).join("");
+}
+function render(){
+ renderUsers();
+ const all=docs();
+ const act=all.filter(d=>!d.done).sort((a,b)=>a.due.localeCompare(b.due));
+ const dn=all.filter(d=>d.done).sort((a,b)=>b.doneAt.localeCompare(a.doneAt));
+ $("c1").textContent=act.length;$("c2").textContent=dn.length;
+ const arr=tab==="active"?act:dn;
+ if(!arr.length){$("list").innerHTML='<div class="empty">'+(tab==="active"?"Нет документов в работе":"Исполненных документов пока нет")+'</div>';return}
+ $("list").innerHTML=arr.map(d=>{const s=status(d);return `<div class="doc ${s.c}">
+ <div class="top"><div class="ttl">${esc(d.title)}</div><span class="badge ${s.c}">${s.t}</span></div>
+ <div class="meta"><div><b>Срок</b>${fmt(d.due)}</div><div><b>Исполнитель</b>${esc(d.exec)}</div><div><b>Дата регистрации</b>${fmt(d.added.slice(0,10))}</div></div>
+ ${d.res?`<div class="meta"><div style="grid-column:1/-1"><b>Резолюция</b><span class="res">${esc(d.res)}</span></div></div>`:""}
+ <div class="act">
+  ${d.done?`<button data-a="undo" data-id="${d.id}">↩ Вернуть в работу</button>`:`<button class="ok" data-a="done" data-id="${d.id}">✓ Исполнено</button><button data-a="edit" data-id="${d.id}">Изменить</button>`}
+  <button class="del" data-a="del" data-id="${d.id}">Удалить</button>
+ </div></div>`}).join("");
+}
+
+/* ---------- модальное окно ---------- */
+function modal(html,onOpen){$("box").innerHTML=html;$("modal").classList.add("on");if(onOpen)onOpen();}
+function closeModal(){$("modal").classList.remove("on");$("box").innerHTML=""}
+
+function newUserDialog(first){
+ modal(`<h2>${first?"Создайте профиль":"Новый пользователь"}</h2>
+  <div><label>Имя</label><input id="nn" placeholder="Например: Анна"></div>
+  <div><label>Пароль (необязательно)</label><input id="np" type="password" autocomplete="new-password"></div>
+  <div class="hint">Пароль только прячет профиль от случайного просмотра на этом устройстве, это не надёжная защита.</div>
+  <div style="display:flex;gap:8px"><button class="primary" id="ok">Создать</button>${first?"":'<button id="no">Отмена</button>'}</div>`,
+ ()=>{
+  $("nn").focus();
+  if(!first)$("no").onclick=closeModal;
+  $("ok").onclick=async()=>{
+   const name=$("nn").value.trim();if(!name){$("nn").focus();return}
+   const u={id:uid(),name,pass:await hash($("np").value),docs:[]};
+   if(first){try{const o=JSON.parse(localStorage.getItem(OLD));if(Array.isArray(o))u.docs=o}catch(e){}}
+   S.users.push(u);S.current=u.id;save();closeModal();render();
+  };
+ });
+}
+function loginDialog(target,prev){
+ modal(`<h2>Вход: ${esc(target.name)}</h2>
+  <div><label>Пароль</label><input id="lp" type="password" autocomplete="current-password"></div>
+  <div class="hint" id="le"></div>
+  <div style="display:flex;gap:8px"><button class="primary" id="ok">Войти</button><button id="no">Отмена</button></div>`,
+ ()=>{
+  $("lp").focus();
+  const cancel=()=>{closeModal();renderUsers()};
+  $("no").onclick=cancel;
+  const go=async()=>{
+   if(await hash($("lp").value)===target.pass){S.current=target.id;saveLocal();closeModal();resetForm();render()}
+   else{$("le").textContent="Неверный пароль";$("le").style.color="var(--bad)"}
+  };
+  $("ok").onclick=go;$("lp").onkeydown=e=>{if(e.key==="Enter")go()};
+ });
+}
+
+$("usel").onchange=()=>{
+ const t=S.users.find(u=>u.id===$("usel").value);
+ if(!t)return;
+ if(t.pass)loginDialog(t);else{S.current=t.id;saveLocal();resetForm();render()}
+};
+$("uadd").onclick=()=>newUserDialog(false);
+$("udel").onclick=()=>{
+ const u=user();if(!u)return;
+ if(!confirm("Удалить пользователя «"+u.name+"» и все его документы?"))return;
+ S.users=S.users.filter(x=>x!==u);
+ if(!S.users.length){S.current=null;save();newUserDialog(true);return}
+ const n=S.users[0];S.current=n.pass?null:n.id;save();
+ if(n.pass){render();loginDialog(n)}else render();
+};
+
+/* ---------- экспорт / импорт ---------- */
+$("exp").onclick=()=>{
+ const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+ a.download="doctracker-"+new Date().toISOString().slice(0,10)+".json";
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+$("imp").onclick=()=>$("file").click();
+$("file").onchange=async e=>{
+ const f=e.target.files[0];e.target.value="";if(!f)return;
+ try{
+  const r=JSON.parse(await f.text());
+  if(!r||!Array.isArray(r.users))throw 0;
+  if(!confirm("Заменить текущие данные данными из файла ("+r.users.length+" польз.)?"))return;
+  S={users:r.users,current:null};save();
+  const u=S.users.find(x=>!x.pass)||S.users[0];
+  if(u&&!u.pass){S.current=u.id;save();render()}else{render();if(u)loginDialog(u)}
+ }catch(err){alert("Не удалось прочитать файл: это не резервная копия приложения.")}
+};
+
+/* ---------- форма и документы ---------- */
+function resetForm(){editId=null;$("f").reset();$("sub").textContent="Добавить документ";$("cancel").hidden=true}
+$("cancel").onclick=resetForm;
+$("f").onsubmit=e=>{
+ e.preventDefault();if(!user())return;
+ const v={title:$("title").value.trim(),due:$("due").value,exec:$("exec").value.trim(),res:$("res").value.trim()};
+ if(!v.title||!v.due)return;
+ if(editId)Object.assign(docs().find(d=>d.id===editId),v);
+ else docs().push({id:uid(),...v,added:new Date().toISOString(),done:false,doneAt:null});
+ save();resetForm();render();
+};
+$("list").onclick=e=>{
+ const b=e.target.closest("button");if(!b)return;
+ const d=docs().find(x=>x.id===b.dataset.id);if(!d)return;
+ const a=b.dataset.a;
+ if(a==="done"){d.done=true;d.doneAt=new Date().toISOString()}
+ else if(a==="undo"){d.done=false;d.doneAt=null}
+ else if(a==="del"){if(!confirm("Удалить документ?"))return;user().docs=docs().filter(x=>x!==d)}
+ else if(a==="edit"){editId=d.id;$("title").value=d.title;$("due").value=d.due;$("exec").value=d.exec;$("res").value=d.res;$("sub").textContent="Сохранить";$("cancel").hidden=false;window.scrollTo({top:0,behavior:"smooth"});return}
+ save();render();
+};
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+ tab=t.dataset.t;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));render();
+});
+
+/* ---------- облачная синхронизация (приватный Gist) ---------- */
+const SKEY="doctracker-sync",FN="doctracker.json";
+let sync={token:"",gist:""},pushT=null,busy=false,lastErr="";
+try{Object.assign(sync,JSON.parse(localStorage.getItem(SKEY)))}catch(e){}
+const saveSync=()=>{try{localStorage.setItem(SKEY,JSON.stringify(sync))}catch(e){}};
+function setSt(t,bad){const el=$("st");el.textContent=t;el.style.color=bad?"var(--bad)":""}
+async function gh(path,opt){
+ const r=await fetch("https://api.github.com"+path,Object.assign({},opt,{headers:{Authorization:"Bearer "+sync.token,Accept:"application/vnd.github+json","Content-Type":"application/json"}}));
+ if(!r.ok){const e=new Error("HTTP "+r.status);e.status=r.status;throw e}
+ return r.json();
+}
+async function pull(){
+ const g=await gh("/gists/"+sync.gist),f=g.files&&g.files[FN];
+ if(!f)return null;
+ const txt=f.truncated?await (await fetch(f.raw_url)).text():f.content;
+ return JSON.parse(txt);
+}
+async function push(){
+ const files={};files[FN]={content:JSON.stringify(S)};
+ if(!sync.gist){
+  const g=await gh("/gists",{method:"POST",body:JSON.stringify({description:"DocTracker data",public:false,files})});
+  sync.gist=g.id;saveSync();
+ }else await gh("/gists/"+sync.gist,{method:"PATCH",body:JSON.stringify({files})});
+}
+function adopt(r){
+ const cur=S.current;S=r;
+ S.current=S.users.some(u=>u.id===cur)?cur:null;
+ saveLocal();
+ if(!S.current&&S.users.length){
+  const u=S.users[0];
+  if(u.pass){render();loginDialog(u);return}
+  S.current=u.id;saveLocal();
+ }
+ render();
+}
+function errText(e){
+ if(e.status===401)return "Токен не подходит или истёк";
+ if(e.status===404)return "Gist не найден (проверьте ID и права токена)";
+ if(e.status===403)return "GitHub отклонил запрос (лимит или права токена)";
+ return "Нет связи с GitHub";
+}
+async function syncNow(){
+ if(!sync.token||busy)return;
+ busy=true;
+ try{
+  setSt("☁ Синхронизация…");
+  const r=sync.gist?await pull():null;
+  if(r&&Array.isArray(r.users)&&(r.rev||0)>(S.rev||0))adopt(r);
+  else if(!r||(r.rev||0)<(S.rev||0))await push();
+  setSt("☁ Синхронизировано в "+new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}));
+ }catch(e){setSt("☁ "+errText(e)+". Данные сохранены на устройстве.",true)}
+ busy=false;
+}
+function schedulePush(){
+ if(!sync.token)return;
+ clearTimeout(pushT);
+ pushT=setTimeout(async()=>{
+  if(busy){schedulePush();return}
+  busy=true;
+  try{setSt("☁ Сохранение…");await push();setSt("☁ Синхронизировано в "+new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}))}
+  catch(e){setSt("☁ "+errText(e)+". Данные сохранены на устройстве.",true)}
+  busy=false;
+ },1500);
+}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncNow()});
+
+$("cloud").onclick=()=>{
+ modal(`<h2>Синхронизация</h2>
+  <div class="hint">Данные хранятся в вашем приватном Gist на GitHub (бесплатно). Создайте <b>classic-токен</b> с единственным правом <b>gist</b>:
+   <a href="https://github.com/settings/tokens/new?scopes=gist&description=DocTracker" target="_blank" rel="noopener">создать токен</a>.</div>
+  <div><label>Токен GitHub</label><input id="tk" type="password" value="${esc(sync.token)}" autocomplete="off"></div>
+  <div><label>ID Gist ${sync.gist?"":"(оставьте пустым на первом устройстве)"}</label><input id="gi" value="${esc(sync.gist)}" autocomplete="off"></div>
+  <div class="hint">На втором устройстве введите тот же токен и ID Gist, который здесь появится после подключения. Токен хранится в памяти этого браузера, при очистке кэша его нужно ввести заново, а данные останутся в облаке.</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="ok">Подключить</button><button id="no">Закрыть</button>${sync.token?'<button id="off" class="del">Отключить</button>':""}</div>
+  <div class="hint" id="me"></div>`,
+ ()=>{
+  $("no").onclick=closeModal;
+  if($("off"))$("off").onclick=()=>{sync={token:"",gist:""};saveSync();setSt("");closeModal()};
+  $("ok").onclick=async()=>{
+   const tk=$("tk").value.trim(),gi=$("gi").value.trim();
+   if(!tk){$("me").textContent="Введите токен";return}
+   $("me").style.color="";$("me").textContent="Подключаюсь…";
+   sync={token:tk,gist:gi};
+   try{
+    if(gi){
+     const r=await pull();
+     if(r&&Array.isArray(r.users)&&r.users.length){
+      if(!S.users.length||confirm("Заменить данные на этом устройстве данными из облака?")){adopt(r);saveSync();setSt("☁ Подключено");closeModal();return}
+     }
+    }
+    S.rev=Date.now();saveLocal();
+    await push();saveSync();
+    setSt("☁ Подключено");
+    $("gi").value=sync.gist;
+    $("me").textContent="Готово. ID Gist для второго устройства: "+sync.gist;
+   }catch(e){$("me").style.color="var(--bad)";$("me").textContent=errText(e);sync={token:"",gist:""}}
+  };
+ });
+};
+
+/* ---------- старт ---------- */
+function start(){
+ if(!S.users.length){render();newUserDialog(true);return}
+ let u=user();
+ if(!u){u=S.users[0];S.current=null}
+ if(u&&u.pass){render();loginDialog(u)}
+ else{S.current=u.id;render()}
+}
+(async()=>{
+ load();
+ if(sync.token){
+  await Promise.race([syncNow(),new Promise(r=>setTimeout(r,4000))]);
+ }
+ if(!$("modal").classList.contains("on"))start();
+})();
+</script>
+</body>
+</html>
